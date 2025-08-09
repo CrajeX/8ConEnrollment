@@ -20,7 +20,10 @@ export const createStudent = async (req, res) => {
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
+
+    // Destructure everything at once
     const {
+      birth_date,
       student_id: incomingStudentId,
       first_name = '',
       middle_name = '',
@@ -28,7 +31,6 @@ export const createStudent = async (req, res) => {
       email: incomingEmail,
       age: manualAge,
       gender,
-      birth_date,
       birth_place,
       phone_number,
       address,
@@ -37,24 +39,25 @@ export const createStudent = async (req, res) => {
       course_id,
       trading_level_id,
       learning_style_id,
+      learning_device,
       device_availability,
       rating,
     } = req.body;
 
+    // Calculate age immediately
+    const calculatedAge = calculateAge(birth_date);
+    const finalAge = calculatedAge || manualAge || null;
+
     if (!first_name?.trim() || !last_name?.trim()) {
       throw new Error('First name and last name are required');
     }
-
-    // Calculate age first
-    const calculatedAge = calculateAge(birth_date);
-    const finalAge = calculatedAge || manualAge || null;
 
     // Generate student_id FIRST
     const student_id = incomingStudentId?.trim()
       ? incomingStudentId.trim()
       : `STU${Date.now()}`.slice(0, 20);
 
-    // Check if this exact student_id already exists
+    // Check for existing student_id
     const [existingStudentCheck] = await conn.query(
       'SELECT student_id FROM students WHERE student_id = ? LIMIT 1',
       [student_id]
@@ -64,11 +67,16 @@ export const createStudent = async (req, res) => {
     }
 
     // Create unique username
-    const baseUsername = `${first_name}${middle_name}${last_name}`.replace(/\s+/g, '').toLowerCase();
+    const baseUsername = `${first_name}${middle_name}${last_name}`
+      .replace(/\s+/g, '')
+      .toLowerCase();
     let username = baseUsername || `user${Date.now()}`;
     let suffix = 0;
     while (true) {
-      const [exists] = await conn.query('SELECT 1 FROM accounts WHERE username = ? LIMIT 1', [username]);
+      const [exists] = await conn.query(
+        'SELECT 1 FROM accounts WHERE username = ? LIMIT 1',
+        [username]
+      );
       if (exists.length === 0) break;
       suffix++;
       username = `${baseUsername}${suffix}`;
@@ -78,7 +86,10 @@ export const createStudent = async (req, res) => {
     let email = incomingEmail?.trim() || `${username}@no-reply.8connect.local`;
     let emailSuffix = 0;
     while (true) {
-      const [exists] = await conn.query('SELECT 1 FROM accounts WHERE email = ? LIMIT 1', [email]);
+      const [exists] = await conn.query(
+        'SELECT 1 FROM accounts WHERE email = ? LIMIT 1',
+        [email]
+      );
       if (exists.length === 0) break;
       emailSuffix++;
       const parts = email.split('@');
@@ -94,12 +105,12 @@ export const createStudent = async (req, res) => {
     );
     const account_id = accResult.insertId;
 
-    // Create student record WITHOUT batch_id initially
+    // Insert student
     await conn.query(
       `INSERT INTO students
       (student_id, account_id, first_name, middle_name, last_name, age, gender, birth_date, birth_place, phone_number, address,
-       background, goals, batch_id, trading_level_id, learning_style_id, device_availability, rating)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       background, goals, batch_id, trading_level_id, learning_style_id, learning_device, device_availability, rating)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         student_id,
         account_id,
@@ -114,9 +125,10 @@ export const createStudent = async (req, res) => {
         address?.trim() || null,
         background?.trim() || null,
         goals?.trim() || null,
-        null, // batch_id will be set when enrolling in course
+        null,
         trading_level_id ?? null,
         learning_style_id ?? null,
+        learning_device?.trim() || null,
         device_availability?.trim() || null,
         rating ?? 0.0
       ]
@@ -125,9 +137,8 @@ export const createStudent = async (req, res) => {
     let enrollmentInfo = null;
     let competencyAssessment = null;
 
-    // Handle course enrollment if course_id is provided
+    // === COURSE ENROLLMENT ===
     if (course_id) {
-      // Validate course exists
       const [courseRows] = await conn.query(
         'SELECT * FROM courses WHERE course_id = ? LIMIT 1',
         [course_id]
@@ -136,7 +147,7 @@ export const createStudent = async (req, res) => {
         throw new Error(`Course with ID ${course_id} does not exist`);
       }
 
-      // Find or create batch for the course
+      // Find or create batch
       let batch_id;
       const [batchRows] = await conn.query(
         'SELECT batch_id FROM batches WHERE course_id = ? AND is_active = 1 ORDER BY created_at DESC LIMIT 1',
@@ -145,7 +156,6 @@ export const createStudent = async (req, res) => {
       if (batchRows.length > 0) {
         batch_id = batchRows[0].batch_id;
       } else {
-        // Create new batch if none exists
         const [batchResult] = await conn.query(
           `INSERT INTO batches (course_id, batch_name, start_date, end_date)
            VALUES (?, ?, CURDATE(), DATE_ADD(CURDATE(), INTERVAL 3 MONTH))`,
@@ -166,21 +176,20 @@ export const createStudent = async (req, res) => {
         [student_id, course_id]
       );
 
-      // Create Basic competency assessment for this course
+      // Create basic competency assessment
       const [basicCompetencyRows] = await conn.query(
         'SELECT type_id, type_name, passing_score FROM competency_types WHERE type_name = ? LIMIT 1',
         ['Basic']
       );
       let basicCompetencyId = 1;
       let competencyName = 'Basic';
-      let passingScore = 75.00;
+      let passingScore = 75.0;
       if (basicCompetencyRows.length > 0) {
         basicCompetencyId = basicCompetencyRows[0].type_id;
         competencyName = basicCompetencyRows[0].type_name;
         passingScore = basicCompetencyRows[0].passing_score;
       }
 
-      // Insert competency assessment
       await conn.query(
         `INSERT INTO competency_assessments 
          (student_id, course_id, competency_type_id, attempt_number, score, passing_score, exam_status, assessment_date, notes)
@@ -189,10 +198,10 @@ export const createStudent = async (req, res) => {
           student_id,
           course_id,
           basicCompetencyId,
-          1, // First attempt
-          0.00, // Initial score
+          1,
+          0.0,
           passingScore,
-          'failed', // Initial status
+          'failed',
           `Initial ${competencyName} competency assessment for course ${course_id}`
         ]
       );
@@ -206,7 +215,7 @@ export const createStudent = async (req, res) => {
       competencyAssessment = {
         type: competencyName,
         course_id,
-        score: 0.00,
+        score: 0.0,
         status: 'failed',
         attempt: 1
       };
@@ -214,24 +223,23 @@ export const createStudent = async (req, res) => {
 
     await conn.commit();
 
-    // Prepare response
     const response = {
-      message: 'Student created successfully',
+      message: enrollmentInfo
+        ? 'Student created and enrolled successfully'
+        : 'Student created successfully',
       student_id,
       username,
       email,
       account_id,
       age: finalAge,
-      action: 'created_new'
+      learning_device: learning_device?.trim() || null,
+      action: 'created_new',
+      ...(enrollmentInfo && { enrollment: enrollmentInfo }),
+      ...(competencyAssessment && { competency_assessment: competencyAssessment })
     };
 
-    if (enrollmentInfo) {
-      response.message = 'Student created and enrolled successfully';
-      response.enrollment = enrollmentInfo;
-      response.competency_assessment = competencyAssessment;
-    }
-
     res.status(201).json(response);
+
   } catch (err) {
     await conn.rollback();
     res.status(500).json({ error: err.message });
@@ -239,6 +247,7 @@ export const createStudent = async (req, res) => {
     conn.release();
   }
 };
+
 
 // Separate function to enroll existing student in additional courses
 export const enrollStudentInCourse = async (req, res) => {
@@ -524,6 +533,7 @@ export const getStudents = async (req, res) => {
         s.goals,
         s.trading_level_id,
         s.learning_style_id,
+        s.learning_device,
         s.device_availability,
         s.rating,
         s.is_graduated,
@@ -793,11 +803,12 @@ export const updateStudent = async (req, res) => {
     // Update student details mode
     const fields = [];
     const values = [];
+    // FIXED: Added learning_device and age to allowed fields
     const allowed = [
       'first_name', 'middle_name', 'last_name', 'gender', 'birth_date', 'birth_place',
       'phone_number', 'address', 'background', 'goals', 'batch_id', 'trading_level_id',
-      'learning_style_id', 'device_availability', 'rating', 'is_graduated', 
-      'eligibility_status', 'graduation_date'
+      'learning_style_id', 'learning_device', 'device_availability', 'rating', 'is_graduated', 
+      'eligibility_status', 'graduation_date', 'age'
     ];
 
     let finalAge = manualAge;

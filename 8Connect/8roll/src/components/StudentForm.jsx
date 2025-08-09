@@ -16,6 +16,7 @@ export default function StudentForm({ initial = {}, courses = [], onSubmit, onCa
     batch_id: '',
     course_id: '',
     mode: 'update',
+    learning_device: '',
     ...initial,
   });
 
@@ -303,11 +304,26 @@ export default function StudentForm({ initial = {}, courses = [], onSubmit, onCa
                 />
               </label>
             </fieldset>
-
+                  
             <fieldset style={{ border: '1px solid #dee2e6', borderRadius: '8px', padding: '20px', marginBottom: '24px' }}>
               <legend style={{ fontWeight: '600', color: '#495057', fontSize: '16px', padding: '0 8px' }}>
                 Academic Information
               </legend>
+                  <label style={labelStyle}>
+                  <span>Learning Device</span>
+                  <select 
+                    name="learning_device" 
+                    value={form.learning_device} 
+                    onChange={handleChange}
+                    style={inputStyle}
+                  >
+                    <option value="Mobile Phone">Mobile Phone</option>
+                    <option value="Tablet">Tablet</option>
+                    <option value="Laptop">Laptop</option>
+                    <option value="Desktop">Desktop</option>
+                  </select>
+                </label>
+
 
               <label style={labelStyle}>
                 <span>Batch ID</span>

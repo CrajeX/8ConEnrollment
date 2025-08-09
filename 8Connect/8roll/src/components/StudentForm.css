@@ -1,0 +1,152 @@
+.sf-container {
+  max-width: 700px;
+  padding: 24px;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.sf-header {
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid #e9ecef;
+}
+
+.sf-title {
+  margin: 0;
+  color: #2c3e50;
+  font-size: 24px;
+}
+
+.sf-student-id {
+  margin: 8px 0 0 0;
+  color: #6c757d;
+  font-size: 14px;
+  font-family: monospace;
+}
+
+.sf-form {
+  /* Form wrapper styles */
+}
+
+.sf-label {
+  display: flex;
+  flex-direction: column;
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 16px;
+}
+
+.sf-label-text {
+  font-weight: 600;
+  color: #495057;
+}
+
+.sf-required {
+  color: #dc3545;
+}
+
+.sf-input, .sf-select, .sf-textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  margin-top: 4px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  box-sizing: border-box;
+}
+
+.sf-input:focus, .sf-select:focus, .sf-textarea:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.sf-input.sf-error, .sf-select.sf-error, .sf-textarea.sf-error {
+  border-color: #dc3545;
+}
+
+.sf-textarea {
+  min-height: 80px;
+  resize: vertical;
+  font-family: inherit;
+}
+
+.sf-error-text {
+  color: #dc3545;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.sf-fieldset {
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 24px;
+}
+
+.sf-legend {
+  font-weight: 600;
+  color: #495057;
+  font-size: 16px;
+  padding: 0 8px;
+}
+
+.sf-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 16px;
+}
+
+.sf-grid-2-no-margin {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.sf-help-text {
+  color: #6c757d;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.sf-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  padding-top: 16px;
+  border-top: 1px solid #e9ecef;
+}
+
+.sf-btn {
+  padding: 12px 24px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+}
+
+.sf-btn-cancel {
+  border: 1px solid #6c757d;
+  background-color: white;
+  color: #6c757d;
+}
+
+.sf-btn-cancel:hover {
+  background-color: #6c757d;
+  color: white;
+}
+
+.sf-btn-submit {
+  background-color: #007bff;
+  color: white;
+}
+
+.sf-btn-submit:hover {
+  background-color: #0056b3;
+}

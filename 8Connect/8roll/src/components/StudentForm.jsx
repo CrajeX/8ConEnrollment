@@ -1,7 +1,18 @@
 // src/components/StudentForm.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import './StudentForm.css'; // Import the CSS file
-export default function StudentForm({ initial = {}, courses = [], onSubmit, onCancel }) {
+
+export default function StudentForm({ 
+  initial = {}, 
+  courses = [], 
+  tradingLevels = [], 
+  learningStyles = [], 
+  onSubmit, 
+  onCancel,
+  // New prop for API base URL
+ 
+}) {
+  const apiBaseUrl = import.meta.env.VITE_API_URL;
   const initialRef = useRef(null);
   const [form, setForm] = useState({
     student_id: '',
@@ -17,9 +28,95 @@ export default function StudentForm({ initial = {}, courses = [], onSubmit, onCa
     course_id: '',
     mode: 'update',
     learning_device: '',
+    trading_level_id: 1, // Default to first trading level
+    learning_style_id: 1, // Default to first learning style
     ...initial,
   });
   const [errors, setErrors] = useState({});
+  
+  // New state for fetched data
+  const [fetchedTradingLevels, setFetchedTradingLevels] = useState([]);
+  const [fetchedLearningStyles, setFetchedLearningStyles] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [fetchError, setFetchError] = useState(null);
+
+  // Use fetched data if available, otherwise use props
+  const activeTradingLevels = fetchedTradingLevels.length > 0 ? fetchedTradingLevels : tradingLevels;
+  const activeLearningStyles = fetchedLearningStyles.length > 0 ? fetchedLearningStyles : learningStyles;
+
+  // Fetch trading levels and learning styles on component mount
+  useEffect(() => {
+    const fetchDropdownData = async () => {
+      setIsLoading(true);
+      setFetchError(null);
+
+      try {
+       const [tradingResponse, learningResponse] = await Promise.all([
+        fetch(`${apiBaseUrl}/students/data/trading-levels`, {
+          headers: {
+            "ngrok-skip-browser-warning": "true"
+          }
+        }),
+        fetch(`${apiBaseUrl}/students/data/learning-styles`, {
+          headers: {
+            "ngrok-skip-browser-warning": "true"
+          }
+        })
+      ]);
+
+        if (!tradingResponse.ok) {
+          throw new Error(`Failed to fetch trading levels: ${tradingResponse.status}`);
+        }
+        if (!learningResponse.ok) {
+          throw new Error(`Failed to fetch learning styles: ${learningResponse.status}`);
+        }
+
+        const tradingData = await tradingResponse.json();
+        const learningData = await learningResponse.json();
+
+        // Handle the response structure from your API
+        const tradingLevelsData = tradingData.data || tradingData || [];
+        const learningStylesData = learningData.data || learningData || [];
+
+        setFetchedTradingLevels(tradingLevelsData);
+        setFetchedLearningStyles(learningStylesData);
+
+        // Set default values if form doesn't have them and data is available
+        if (tradingLevelsData.length > 0 && !form.trading_level_id) {
+          setForm(prevForm => ({
+            ...prevForm,
+            trading_level_id: tradingLevelsData[0].level_id
+          }));
+        }
+
+        if (learningStylesData.length > 0 && !form.learning_style_id) {
+          setForm(prevForm => ({
+            ...prevForm,
+            learning_style_id: learningStylesData[0].style_id
+          }));
+        }
+
+      } catch (error) {
+        console.error('Error fetching dropdown data:', error);
+        setFetchError(error.message);
+        
+        // Fallback to default values if fetch fails
+        if (tradingLevels.length > 0) {
+          setFetchedTradingLevels(tradingLevels);
+        }
+        if (learningStyles.length > 0) {
+          setFetchedLearningStyles(learningStyles);
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    // Only fetch if we don't already have data from props
+    if (tradingLevels.length === 0 || learningStyles.length === 0) {
+      fetchDropdownData();
+    }
+  }, [apiBaseUrl, tradingLevels.length, learningStyles.length]);
 
   // Only update form when the student_id actually changes
   useEffect(() => {
@@ -39,11 +136,14 @@ export default function StudentForm({ initial = {}, courses = [], onSubmit, onCa
         batch_id: '',
         course_id: '',
         mode: 'update',
+        learning_device: '',
+        trading_level_id: activeTradingLevels.length > 0 ? activeTradingLevels[0].level_id : 1,
+        learning_style_id: activeLearningStyles.length > 0 ? activeLearningStyles[0].style_id : 1,
         ...initial,
       }));
       setErrors({});
     }
-  }, [initial?.student_id]);
+  }, [initial?.student_id, activeTradingLevels, activeLearningStyles]);
 
   const validateForm = () => {
     const newErrors = {};
@@ -59,6 +159,16 @@ export default function StudentForm({ initial = {}, courses = [], onSubmit, onCa
     // Course is required for new students or when adding courses
     if ((form.mode === 'addCourse' || !initial?.student_id) && !form.course_id) {
       newErrors.course_id = 'Course selection is required';
+    }
+    
+    // Validate trading level (should always be selected)
+    if (!form.trading_level_id) {
+      newErrors.trading_level_id = 'Trading level is required';
+    }
+    
+    // Validate learning style (should always be selected)
+    if (!form.learning_style_id) {
+      newErrors.learning_style_id = 'Learning style is required';
     }
     
     // Validate birth date if provided
@@ -126,6 +236,19 @@ export default function StudentForm({ initial = {}, courses = [], onSubmit, onCa
             </p>
           )}
         </div>
+
+        {/* Show loading or error state */}
+        {isLoading && (
+          <div className="sf-loading">
+            <p>Loading form data...</p>
+          </div>
+        )}
+
+        {fetchError && (
+          <div className="sf-error-banner">
+            <p>Warning: Could not load some form data. Using defaults. Error: {fetchError}</p>
+          </div>
+        )}
 
         <form className="sf-form" onSubmit={handleSubmit}>
           {/* Show mode selector only when editing */}
@@ -269,6 +392,46 @@ export default function StudentForm({ initial = {}, courses = [], onSubmit, onCa
                   Academic Information
                 </legend>
 
+                <div className="sf-grid-2">
+                  <label className="sf-label">
+                    <span>Trading Level <span className="sf-required">*</span></span>
+                    <select 
+                      name="trading_level_id" 
+                      value={form.trading_level_id || ''} 
+                      onChange={handleChange}
+                      className={`sf-select ${errors.trading_level_id ? 'sf-error' : ''}`}
+                      disabled={isLoading}
+                    >
+                      <option value="">Select trading level</option>
+                      {activeTradingLevels.map(level => (
+                        <option key={level.level_id} value={level.level_id}>
+                          {level.level_name}
+                        </option>
+                      ))}
+                    </select>
+                    {errors.trading_level_id && <span className="sf-error-text">{errors.trading_level_id}</span>}
+                  </label>
+
+                  <label className="sf-label">
+                    <span>Learning Style <span className="sf-required">*</span></span>
+                    <select 
+                      name="learning_style_id" 
+                      value={form.learning_style_id || ''} 
+                      onChange={handleChange}
+                      className={`sf-select ${errors.learning_style_id ? 'sf-error' : ''}`}
+                      disabled={isLoading}
+                    >
+                      <option value="">Select learning style</option>
+                      {activeLearningStyles.map(style => (
+                        <option key={style.style_id} value={style.style_id}>
+                          {style.style_name}
+                        </option>
+                      ))}
+                    </select>
+                    {errors.learning_style_id && <span className="sf-error-text">{errors.learning_style_id}</span>}
+                  </label>
+                </div>
+
                 <label className="sf-label">
                   <span>Learning Device</span>
                   <select 
@@ -277,6 +440,7 @@ export default function StudentForm({ initial = {}, courses = [], onSubmit, onCa
                     onChange={handleChange}
                     className="sf-select"
                   >
+                    <option value="">Select learning device</option>
                     <option value="Mobile Phone">Mobile Phone</option>
                     <option value="Tablet">Tablet</option>
                     <option value="Laptop">Laptop</option>
@@ -342,6 +506,7 @@ export default function StudentForm({ initial = {}, courses = [], onSubmit, onCa
             <button 
               type="submit"
               className="sf-btn sf-btn-submit"
+              disabled={isLoading}
             >
               {isEditing 
                 ? (form.mode === 'addCourse' ? 'Add Course' : 'Update Student')

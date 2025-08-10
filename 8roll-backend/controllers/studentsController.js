@@ -40,7 +40,6 @@ export const createStudent = async (req, res) => {
       trading_level_id,
       learning_style_id,
       learning_device,
-      device_availability,
       rating,
     } = req.body;
 
@@ -109,8 +108,8 @@ export const createStudent = async (req, res) => {
     await conn.query(
       `INSERT INTO students
       (student_id, account_id, first_name, middle_name, last_name, age, gender, birth_date, birth_place, phone_number, address,
-       background, goals, batch_id, trading_level_id, learning_style_id, learning_device, device_availability, rating)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       background, goals, batch_id, trading_level_id, learning_style_id, learning_device, rating)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         student_id,
         account_id,
@@ -129,7 +128,6 @@ export const createStudent = async (req, res) => {
         trading_level_id ?? null,
         learning_style_id ?? null,
         learning_device?.trim() || null,
-        device_availability?.trim() || null,
         rating ?? 0.0
       ]
     );
@@ -534,7 +532,6 @@ export const getStudents = async (req, res) => {
         s.trading_level_id,
         s.learning_style_id,
         s.learning_device,
-        s.device_availability,
         s.rating,
         s.is_graduated,
         s.eligibility_status,
@@ -807,7 +804,7 @@ export const updateStudent = async (req, res) => {
     const allowed = [
       'first_name', 'middle_name', 'last_name', 'gender', 'birth_date', 'birth_place',
       'phone_number', 'address', 'background', 'goals', 'batch_id', 'trading_level_id',
-      'learning_style_id', 'learning_device', 'device_availability', 'rating', 'is_graduated', 
+      'learning_style_id', 'learning_device', 'rating', 'is_graduated', 
       'eligibility_status', 'graduation_date', 'age'
     ];
 
@@ -905,6 +902,75 @@ export const getStudentById = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+// Add these functions to your existing studentsController.js file
+
+// Additional endpoints to add to your routes file
+
+// Get all trading levels
+export const getTradingLevels = async (req, res) => {
+  try {
+    const [rows] = await pool.query(`
+      SELECT 
+        level_id,
+        level_name,
+        description
+      FROM trading_levels 
+      ORDER BY level_id ASC
+    `);
+
+    if (!rows.length) {
+      return res.status(404).json({ 
+        error: 'No trading levels found',
+        data: []
+      });
+    }
+
+    res.json({
+      message: 'Trading levels retrieved successfully',
+      data: rows,
+      count: rows.length
+    });
+  } catch (err) {
+    res.status(500).json({ 
+      error: 'Failed to retrieve trading levels',
+      details: err.message 
+    });
+  }
+};
+
+// Get all learning styles
+export const getLearningStyles = async (req, res) => {
+  try {
+    const [rows] = await pool.query(`
+      SELECT 
+        style_id,
+        style_name,
+        description
+      FROM learning_styles 
+      ORDER BY style_id ASC
+    `);
+
+    if (!rows.length) {
+      return res.status(404).json({ 
+        error: 'No learning styles found',
+        data: []
+      });
+    }
+
+    res.json({
+      message: 'Learning styles retrieved successfully',
+      data: rows,
+      count: rows.length
+    });
+  } catch (err) {
+    res.status(500).json({ 
+      error: 'Failed to retrieve learning styles',
+      details: err.message 
+    });
+  }
+};
+
+// Get all learning styles (bonus function since you might need this too)
 
 // Delete student
 export const deleteStudent = async (req, res) => {
